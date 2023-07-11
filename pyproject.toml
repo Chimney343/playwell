@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "playwell"
+version = "1.0.0"
+description = ""
+authors = ["Michal Kominek <mk.kominek@gmail.com>"]
+readme = "README.md"
+packages = [{include = "playwell"}]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.12"
+pandas = "^1.5.3"
+Scrapy = "^2.8.0"
+jupyterlab-code-formatter = "1.5.1"
+jupyterlab = "^3.6.2"
+black = "^23.3.0"
+isort = "^5.12.0"
+tqdm = ">=4.48.2,<4.65"
+plotly = "^5.14.1"
+ydata-profiling = "^4.1.2"
+dash = "^2.9.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
