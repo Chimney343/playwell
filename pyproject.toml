@@ -18,6 +18,9 @@ tqdm = ">=4.48.2,<4.65"
 plotly = "^5.14.1"
 ydata-profiling = "^4.1.2"
 dash = "^2.9.2"
+selenium = "^4.10.0"
+splash = "^3.5"
+pydispatch = "^1.1.0"
 
 
 [build-system]

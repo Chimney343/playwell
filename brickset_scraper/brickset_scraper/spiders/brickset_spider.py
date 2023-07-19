@@ -1,7 +1,16 @@
 import scrapy
 import re
 import math
-#
+from urllib.parse import urljoin
+import scrapy
+import csv
+import scrapy
+import csv
+from scrapy import signals
+from pydispatch import dispatcher
+from scrapy.crawler import CrawlerProcess
+
+
 class BricksetSpider(scrapy.Spider):
     name = 'brickset'
     start_urls = ['https://brickset.com/browse/sets']
@@ -52,13 +61,21 @@ class BricksetSpider(scrapy.Spider):
 
     def parse_metadata(self, response, article=1):
         metadata = {}
-        selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(5)"
+        first_col_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(5)"
+        second_col_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(6)"
+        first_col_n_rows = len(response.css(first_col_selector + ' dt'))
+        second_col_n_rows = len(response.css(second_col_selector + ' dt'))
 
-        n_rows = len(response.css(selector + ' dt'))
-
-        for i in range(1, n_rows*2, 2 ):
+        for i in range(1, first_col_n_rows*2, 2 ):
             row_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(5) > dl:nth-child(1) > dt:nth-child({i})"
             value_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(5) > dl:nth-child(1) > dd:nth-child({i+1})"
+            row = response.css(row_selector).xpath('string()').get()
+            value = response.css(value_selector).xpath('string()').get()
+            metadata[row] = value
+
+        for i in range(1, second_col_n_rows*2, 2 ):
+            row_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(6) > dl:nth-child(1) > dt:nth-child({i})"
+            value_selector = f"article.set:nth-child({article}) > div:nth-child(3) > div:nth-child(6) > dl:nth-child(1) > dd:nth-child({i+1})"
             row = response.css(row_selector).xpath('string()').get()
             value = response.css(value_selector).xpath('string()').get()
             metadata[row] = value
@@ -71,19 +88,59 @@ class BricksetSpider(scrapy.Spider):
             if not name:
                 continue
 
-            values =  {
+            data =  {
                 'name': name,
                 'number': self.parse_number(response, i),
                 'theme': self.parse_theme(response, i),
                 'subtheme': self.parse_subtheme(response, i),
                 'year': self.parse_year(response, i),
                 'tags': self.parse_tags(response, i),
-                'metadata': self.parse_metadata(response, i)
-
+                'inventory_link': (urljoin('https://brickset.com/inventories/', self.parse_number(response, i)))
             }
-            yield values
+            metadata =  self.parse_metadata(response, i)
+            for k, v in metadata.items():
+                data[k] = v
+
+            with open("sets.csv", 'a', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=data.keys())
+                writer.writeheader()
+                writer.writerow(data)
+            yield data
+
+
 
         next_page_url = response.css('li.next > a::attr(href)').get()
-        print(next_page_url)
         if next_page_url:
             yield response.follow(next_page_url, self.parse_subpage)
+
+
+# class InventorySpider(scrapy.Spider):
+#     name = "inventory"
+#     start_urls = None
+#
+#     def __init__(self, set_number):
+#         self.table_loaded = False
+#         dispatcher.connect(self.spider_idle, signals.spider_idle)
+#
+#     def parse(self, response):
+#         # Waiting until the table is loaded
+#         table = response.css('table.neattable:nth-child(5) > tbody:nth-child(2)')
+#         if table:
+#             self.extract_table_data(table)
+#             self.table_loaded = True
+#
+#     def spider_idle(self):
+#         if not self.table_loaded:
+#             pass
+#
+#     def extract_table_data(self, table):
+#         # Extracting table data
+#         rows = table.css('tr')
+#
+#         # Creating a CSV file and writing the data
+#         with open(f'{set_number}_data.csv', 'w', newline='', encoding='utf-8') as csvfile:
+#             writer = csv.writer(csvfile)
+#             for row in rows:
+#                 columns = row.css('td')
+#                 row_data = [column.css('::text').get().strip() for column in columns]
+#                 writer.writerow(row_data)
